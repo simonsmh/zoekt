@@ -15,23 +15,18 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
     runs-on: ubuntu-latest
     container:
-      image: returntocorp/semgrep
+      image: semgrep/semgrep
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Checkout semgrep-rules repo
-        uses: actions/checkout@v4
         with:
-          repository: sourcegraph/security-semgrep-rules
-          token: ${{ secrets.GH_SEMGREP_SAST_TOKEN }}
-          path: semgrep-rules
+          fetch-depth: 0
 
       - name: Run Semgrep SAST Scan
-        run: |
-          mv semgrep-rules ../
-          semgrep ci -f ../semgrep-rules/semgrep-rules/ --metrics=off --oss-only --suppress-errors --sarif -o results.sarif --exclude='semgrep-rules' --baseline-commit "$(git merge-base main HEAD)" || true
+        run: semgrep scan --config p/default --metrics=off --sarif --sarif-output=results.sarif --baseline-commit "${{ github.event.pull_request.base.sha }}"
+
       - name: Upload SARIF file
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
