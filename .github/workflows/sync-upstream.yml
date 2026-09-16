@@ -1,0 +1,79 @@
+# Keep this fork's main rebased onto upstream main.
+# On conflict: abort and fail the job (GitHub Actions failure notification is the alert).
+name: Sync upstream
+
+on:
+  schedule:
+    # Daily 04:00 UTC
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'simonsmh/zoekt'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          # Optional repo secret SYNC_TOKEN (PAT with contents:write) if GITHUB_TOKEN cannot force-push.
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Rebase onto upstream main and force-push
+        env:
+          UPSTREAM_URL: https://github.com/sourcebot-dev/zoekt.git
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --no-tags upstream main
+
+          before="$(git rev-parse HEAD)"
+          upstream_sha="$(git rev-parse upstream/main)"
+
+          {
+            echo "## Sync upstream"
+            echo
+            echo "- Fork \`main\` before: \`$before\`"
+            echo "- Upstream \`main\`: \`$upstream_sha\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$before" = "$upstream_sha" ]; then
+            echo "Already identical to upstream/main; nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if ! git rebase upstream/main; then
+            git rebase --abort || true
+            {
+              echo
+              echo "### Rebase conflict"
+              echo
+              echo "Could not rebase \`main\` onto \`upstream/main\`. Resolve locally, then re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          after="$(git rev-parse HEAD)"
+          echo "- Fork \`main\` after rebase: \`$after\`" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$after" = "$before" ]; then
+            echo "Rebase produced no change; skip push." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git push --force-with-lease origin HEAD:main
+          echo "Force-pushed rebased \`main\` to origin." | tee -a "$GITHUB_STEP_SUMMARY"
