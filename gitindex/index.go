@@ -161,6 +161,12 @@ func setTemplates(repo *zoekt.Repository, u *url.URL, typ string) error {
 		repo.CommitURLTemplate = urlJoinPath("-/commit", varVersion)
 		repo.FileURLTemplate = urlJoinPath("-/blob", varVersion, varPath)
 		repo.LineFragmentTemplate = "#L{{.LineNumber}}"
+	case "gitlab-old":
+		// For GitLab-compatible hosts that don't use the "/-/" URL prefix
+		// (pre-9.3 style URLs): <repo>/commit/<sha>, <repo>/blob/<sha>/<path>.
+		repo.CommitURLTemplate = urlJoinPath("commit", varVersion)
+		repo.FileURLTemplate = urlJoinPath("blob", varVersion, varPath)
+		repo.LineFragmentTemplate = "#L{{.LineNumber}}"
 	case "gitea":
 		repo.CommitURLTemplate = urlJoinPath("commit", varVersion)
 		// NOTE The `display=source` query parameter is required to disable file rendering.

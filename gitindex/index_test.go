@@ -1269,6 +1269,11 @@ func TestSetTemplates(t *testing.T) {
 		file:   "https://example.com/repo/name/-/blob/VERSION/dir/name.txt",
 		line:   "#L10",
 	}, {
+		typ:    "gitlab-old",
+		commit: "https://example.com/repo/name/commit/VERSION",
+		file:   "https://example.com/repo/name/blob/VERSION/dir/name.txt",
+		line:   "#L10",
+	}, {
 		typ:    "gitea",
 		commit: "https://example.com/repo/name/commit/VERSION",
 		file:   "https://example.com/repo/name/src/commit/VERSION/dir/name.txt?display=source",
